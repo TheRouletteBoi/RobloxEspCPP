@@ -142,7 +142,7 @@ private:
     }
 
     void main_loop() {
-        std::println("\nEntering main loop. Press '/' to quit.\n");
+        std::println("\nEntering main loop. Press '\\' to quit.\n");
         std::println("=== Controls ===");
         std::println("  Aim Key    - {} (game-dependent)",
             m_aimSettings.aim_key == games::AimKey::LeftMouse ? "Left Mouse" :
@@ -257,11 +257,11 @@ private:
 
         // Max delta distance: - and = keys
         if (m_esp.was_key_pressed('-')) {
-            m_aimSettings.max_delta_dist = std::max(1.0f, m_aimSettings.max_delta_dist - 1.0f);
+            m_aimSettings.max_delta_dist = std::max(m_aimSettings.min_studs, m_aimSettings.max_delta_dist - 1.0f);
             std::println("[CONFIG] Max delta: {} studs", m_aimSettings.max_delta_dist);
         }
         if (m_esp.was_key_pressed('=')) {
-            m_aimSettings.max_delta_dist = std::min(50.0f, m_aimSettings.max_delta_dist + 1.0f);
+            m_aimSettings.max_delta_dist = std::min(m_aimSettings.max_studs, m_aimSettings.max_delta_dist + 1.0f);
             std::println("[CONFIG] Max delta: {} studs", m_aimSettings.max_delta_dist);
         }
 
@@ -290,6 +290,22 @@ private:
             m_esp.clear_esp();
             return;
         }
+
+        m_esp.begin_frame();
+
+        float screen_center_x = screen_w / 2.0f;
+        float screen_center_y = screen_h / 2.0f;
+
+        // Convert delta distance (studs) to screen pixels
+        float fov_radians = fov * (3.14159f / 180.0f);
+        float tan_half_fov = std::tan(fov_radians * 0.5f);
+
+        float normalized = std::clamp(m_aimSettings.max_delta_dist / m_aimSettings.max_studs, 0.0f, 1.0f);
+
+        float pixel_radius = normalized * (screen_h * 0.45f);
+
+        ESPColor blue{0.3f, 0.6f, 1.0f, 0.5f};
+        m_esp.add_circle(screen_center_x, screen_center_y, pixel_radius, blue, 2.0f, false);
 
         games::Target* best_target = nullptr;
         float best_score = std::numeric_limits<float>::max();
@@ -334,9 +350,6 @@ private:
             }
         }
 
-        m_esp.begin_frame();
-
-        int box_index = 0;
         for (const auto& target : targets) {
             if (!target.is_valid) continue;
 
@@ -353,14 +366,9 @@ private:
             float x = target.screen_position.x;
             float y = target.screen_position.y;
 
-            m_esp.add_box(box_index++,
-                        x - box_width / 2,
-                        y - box_height / 2,
-                        box_width, box_height,
-                        color, label, border);
-
-            if (box_index >= MAX_ESP_COUNT - 1)
-                break;
+            m_esp.add_box(x - box_width / 2, y - box_height / 2,
+                         box_width, box_height,
+                         color, label, border);
         }
 
         m_esp.end_frame();

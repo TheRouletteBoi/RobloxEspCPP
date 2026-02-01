@@ -254,7 +254,7 @@ void ESPManager::capture_loop() {
 
 void ESPManager::esp_render_loop() {
     std::println("ESP render thread: Started");
-    
+
     bool esp_initialized = false;
     bool was_enabled = false;
 
@@ -275,14 +275,10 @@ void ESPManager::esp_render_loop() {
             }
         }
 
-        // Hide all boxes when transitioning from enabled to disabled
+        // Hide all shapes when transitioning from enabled to disabled
         if (was_enabled && !is_enabled && esp_initialized) {
-            for (uint32_t i = 0; i < MAX_ESP_COUNT; i++) {
-                ESPViewHandle handle = shim_get_esp_box(i);
-                if (handle) {
-                    shim_update_esp_box(handle, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", true);
-                }
-            }
+            // Render with 0 shapes to hide everything
+            shim_render_esp_shapes(nullptr, 0, render.font_name, render.font_size);
         }
         was_enabled = is_enabled;
 
@@ -290,32 +286,14 @@ void ESPManager::esp_render_loop() {
             uint32_t frame_index = render.read_index();
             const ESPFrame& frame = render.frames[frame_index];
 
-            for (uint32_t i = 0; i < frame.count && i < MAX_ESP_COUNT; i++) {
-                const ESPBox& box = frame.boxes[i];
-                ESPViewHandle handle = shim_get_esp_box(i);
-
-                if (handle) {
-                    shim_update_esp_box(
-                        handle,
-                        box.frame.x, box.frame.y,
-                        box.frame.width, box.frame.height,
-                        box.color.r, box.color.g, box.color.b, box.color.a,
-                        box.border_width,
-                        box.text,
-                        box.hidden
-                    );
-                }
-            }
-
-            // Hide remaining boxes
-            for (uint32_t i = frame.count; i < MAX_ESP_COUNT; i++) {
-                ESPViewHandle handle = shim_get_esp_box(i);
-                if (handle) {
-                    shim_update_esp_box(handle, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", true);
-                }
-            }
+            shim_render_esp_shapes(
+                frame.shapes,
+                frame.count,
+                render.font_name,
+                render.font_size
+            );
         }
-        
+
         std::this_thread::sleep_for(std::chrono::microseconds(sleep_us));
     }
     

@@ -23,22 +23,22 @@ public:
     void disable_esp();
     bool is_esp_enabled() const;
     
-    // Begin a new frame - call before adding boxes
+    // Begin a new frame - call before adding shapes
     void begin_frame();
 
-    void add_box(int index, const ESPRect& rect, const ESPColor& color,
-                 const std::string& text, float border_width = 2.0f);
-    
-    void add_box(int index, float x, float y, float width, float height,
-                 const ESPColor& color, const std::string& text, 
+    // Add shapes (they go into the buffer in order)
+    void add_box(float x, float y, float width, float height,
+                 const ESPColor& color, const std::string& text = "",
                  float border_width = 2.0f);
-    
-    // End frame and flip buffers - boxes become visible
+
+    void add_circle(float center_x, float center_y, float radius,
+                    const ESPColor& color, float border_width = 2.0f,
+                    bool filled = false);
+
+    // End frame and flip buffers - shapes become visible
     void end_frame();
 
     void clear_esp();
-
-    void set_box_count(uint32_t count);
 
     bool move_mouse(float x, float y);
     bool click_mouse(float x, float y, bool left = true);
@@ -50,10 +50,10 @@ public:
     bool was_key_pressed(uint8_t key);
     bool is_key_code_down(uint8_t keycode) const;
     bool was_key_code_pressed(uint8_t keycode);
-    
+
     bool is_left_mouse_down() const;
     bool is_right_mouse_down() const;
-    
+
     float mouse_x() const;
     float mouse_y() const;
 
@@ -130,56 +130,46 @@ inline void ESPController::begin_frame() {
     frame.count = 0;
 }
 
-inline void ESPController::add_box(int index, const ESPRect& rect, const ESPColor& color,
-                                   const std::string& text, float border_width)
-{
-    if (index < 0 || index >= MAX_ESP_COUNT) return;
-
-    auto& frame = m_shm.render().frames[m_shm.render().write_index()];
-    auto& box = frame.boxes[index];
-
-    box.frame = rect;
-    box.color = color;
-    box.border_width = border_width;
-    box.hidden = false;
-    std::strncpy(box.text, text.c_str(), MAX_ESP_TEXT_LENGTH - 1);
-    box.text[MAX_ESP_TEXT_LENGTH - 1] = '\0';
-
-    if (static_cast<uint32_t>(index) >= frame.count) {
-        frame.count = index + 1;
-    }
-}
-
-inline void ESPController::add_box(int index, float x, float y, float width, float height,
+inline void ESPController::add_box(float x, float y, float width, float height,
                                    const ESPColor& color, const std::string& text,
                                    float border_width)
 {
-    add_box(index, ESPRect(x, y, width, height), color, text, border_width);
+    auto& frame = m_shm.render().frames[m_shm.render().write_index()];
+    if (frame.count >= MAX_ESP_COUNT) return;
+
+    auto& shape = frame.shapes[frame.count++];
+    shape.type = ESPShapeType::Box;
+    shape.box.frame = ESPRect(x, y, width, height);
+    shape.box.color = color;
+    shape.box.border_width = border_width;
+    std::strncpy(shape.box.text, text.c_str(), MAX_ESP_TEXT_LENGTH - 1);
+    shape.box.text[MAX_ESP_TEXT_LENGTH - 1] = '\0';
+}
+
+inline void ESPController::add_circle(float center_x, float center_y, float radius,
+                                      const ESPColor& color, float border_width, bool filled)
+{
+    auto& frame = m_shm.render().frames[m_shm.render().write_index()];
+    if (frame.count >= MAX_ESP_COUNT) return;
+
+    auto& shape = frame.shapes[frame.count++];
+    shape.type = ESPShapeType::Circle;
+    shape.circle.center_x = center_x;
+    shape.circle.center_y = center_y;
+    shape.circle.radius = radius;
+    shape.circle.color = color;
+    shape.circle.border_width = border_width;
+    shape.circle.filled = filled;
 }
 
 inline void ESPController::end_frame() {
-    // Mark remaining boxes as hidden
-    auto& frame = m_shm.render().frames[m_shm.render().write_index()];
-    for (uint32_t i = frame.count; i < MAX_ESP_COUNT; i++) {
-        frame.boxes[i].hidden = true;
-    }
-
-    // Flip to make this frame active
     m_shm.render().flip();
 }
 
 inline void ESPController::clear_esp() {
     auto& frame = m_shm.render().frames[m_shm.render().write_index()];
     frame.count = 0;
-    for (auto& box : frame.boxes) {
-        box.hidden = true;
-    }
     m_shm.render().flip();
-}
-
-inline void ESPController::set_box_count(uint32_t count) {
-    auto& frame = m_shm.render().frames[m_shm.render().write_index()];
-    frame.count = std::min(count, static_cast<uint32_t>(MAX_ESP_COUNT));
 }
 
 inline bool ESPController::queue_input(const InputCommand& cmd) {
@@ -215,12 +205,12 @@ inline bool ESPController::move_mouse(float x, float y) {
 
 inline bool ESPController::click_mouse(float x, float y, bool left) {
     InputCommand down{};
-    down.type = left ? InputType::LEFT_MOUSE_DOWN : InputType::LEFT_MOUSE_DOWN;
+    down.type = left ? InputType::LEFT_MOUSE_DOWN : InputType::RIGHT_MOUSE_DOWN;
     down.x = x;
     down.y = y;
 
     InputCommand up{};
-    up.type = left ? InputType::LEFT_MOUSE_UP : InputType::LEFT_MOUSE_UP;
+    up.type = left ? InputType::LEFT_MOUSE_UP : InputType::RIGHT_MOUSE_UP;
     up.x = x;
     up.y = y;
 

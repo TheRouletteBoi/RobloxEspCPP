@@ -76,6 +76,8 @@ void shim_set_esp_font(const char* font_name, int size);
 // Get number of ESP boxes allocated
 int shim_get_esp_box_count(void);
 
+void shim_render_esp_shapes(const ESPShape* shapes, uint32_t count, const char* font_name, int font_size);
+
 typedef void (*MainThreadBlock)(void* ctx);
 
 void shim_dispatch_main_sync(MainThreadBlock block, void* context);

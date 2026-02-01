@@ -17,7 +17,9 @@ enum class InputType : int {
     KEY_UP = 3,
     LEFT_MOUSE_DOWN = 4,
     LEFT_MOUSE_UP = 5,
-    FIRST_RESPONDER_TEXT = 6
+    RIGHT_MOUSE_DOWN = 6,
+    RIGHT_MOUSE_UP = 7,
+    FIRST_RESPONDER_TEXT = 8
 };
 
 enum class FunctionAsyncType : int {
@@ -47,17 +49,41 @@ struct ESPColor {
     ESPColor(float r_, float g_, float b_, float a_ = 1.0f) : r(r_), g(g_), b(b_), a(a_) {}
 };
 
-struct ESPBox {
+enum class ESPShapeType : uint8_t {
+    Box = 0,
+    Circle = 1,
+    Line = 2,
+    Text = 3
+};
+
+struct ESPBoxData {
     ESPRect frame;
     ESPColor color;
     float border_width = 2.0f;
-    bool hidden = true;
     char text[MAX_ESP_TEXT_LENGTH] = {0};
+};
+
+struct ESPCircleData {
+    float center_x;
+    float center_y;
+    float radius;
+    ESPColor color;
+    float border_width;
+    bool filled;
+};
+
+struct ESPShape {
+    ESPShapeType type;
+
+    union {
+        ESPBoxData box;
+        ESPCircleData circle;
+    };
 };
 
 struct ESPFrame {
     uint32_t count = 0;
-    ESPBox boxes[MAX_ESP_COUNT];
+    ESPShape shapes[MAX_ESP_COUNT];
 };
 
 struct InputCommand {
@@ -151,7 +177,7 @@ struct ESPConfig {
 };
 
 struct SharedMemoryLayout {
-    uint32_t magic = 0xE4912345;
+    uint32_t magic = 0xE5B12345;
     uint32_t version = 1;
 
     ESPState state;

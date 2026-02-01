@@ -34,6 +34,8 @@ struct AimSettings {
     float max_delta_dist = 8.0f;
     float max_distance = 400.0f;
     float smoothing = 5.0f;
+    const float min_studs = 1.0f;
+    const float max_studs = 50.0f;
 
     AimStyle style = AimStyle::Silent;
     TargetSelection selection = TargetSelection::ClosestToCrosshair;
