@@ -181,8 +181,10 @@ void ESPManager::process_input(const InputCommand& cmd) {
 
     switch (cmd.type) {
         case InputType::MOUSE_MOVE: {
-            float y = content_height - cmd.y + titlebar_height;
-            shim_move_mouse(cmd.x, y);
+            float x = std::clamp(cmd.x, 0.0f, m_shm.state().window_w - 1.0f);
+            float y = std::clamp(cmd.y, 0.0f, m_shm.state().window_h - 1.0f);
+            y = content_height - y + titlebar_height;
+            shim_move_mouse(x, y);
             break;
         }
         case InputType::KEY_DOWN:
