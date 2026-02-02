@@ -9,7 +9,7 @@ public:
     struct Config {
         std::string aim_part = "HumanoidRootPart";
         float max_distance = 500.0f;
-        float max_delta_dist = 8.0f;
+        float max_delta_dist = 30.0f;
 
         bool aim_at_teammates = false;
     };
@@ -82,6 +82,10 @@ public:
 
             target.aim_position = aim_part.position();
 
+            target.velocity = calculate_velocity(character.address(), target.aim_position);
+
+            target.predicted_position = target.aim_position;
+
             target.distance_3d = my_pos.distance_to(target.aim_position);
 
             if (target.distance_3d > config.max_distance)
@@ -93,6 +97,8 @@ public:
 
             if (target.screen_position.z <= 0)
                 continue;  // Behind camera
+
+            target.screen_distance = calculate_screen_distance(target.screen_position, m_mouse_x, m_mouse_y);
 
             target.is_valid = true;
             targets.push_back(target);

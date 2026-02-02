@@ -159,10 +159,16 @@ private:
         std::println("  % - Closest to Crosshair");
         std::println("  ^ - Closest Distance");
         std::println("  & - Lowest Health");
+        std::println("  $ - Closest to Mouse");
         std::println("");
         std::println("=== Aim Part ===");
-        std::println("  # - Head");
-        std::println("  $ - Torso");
+        std::println("  @ - Head");
+        std::println("  # - Torso");
+        std::println("");
+        std::println("=== Prediction ===");
+        std::println("  P     - Toggle prediction on/off");
+        std::println("  G     - Toggle gravity prediction");
+        std::println("  , / . - Decrease/Increase bullet speed");
         std::println("");
         std::println("=== Adjustments ===");
         std::println("  [ / ] - Decrease/Increase smoothing");
@@ -232,14 +238,18 @@ private:
             m_aimSettings.selection = games::TargetSelection::LowestHealth;
             std::println("[CONFIG] Selection: Lowest Health");
         }
+        if (m_esp.was_key_pressed('$')) {
+            m_aimSettings.selection = games::TargetSelection::ClosestToMouse;
+            std::println("[CONFIG] Selection: Closest to Mouse");
+        }
 
-        // Aim part: # = Head, $ = Torso
-        if (m_esp.was_key_pressed('#')) {
+        // Aim part: @ = Head, # = Torso
+        if (m_esp.was_key_pressed('@')) {
             m_aimSettings.aim_part = games::AimPart::Head;
             m_activeProfile->set_aim_part("Head");
             std::println("[CONFIG] Aim part: Head");
         }
-        if (m_esp.was_key_pressed('$')) {
+        if (m_esp.was_key_pressed('#')) {
             m_aimSettings.aim_part = games::AimPart::Torso;
             m_activeProfile->set_aim_part("HumanoidRootPart");
             std::println("[CONFIG] Aim part: Torso");
@@ -253,6 +263,26 @@ private:
         if (m_esp.was_key_pressed(']')) {
             m_aimSettings.smoothing = std::min(20.0f, m_aimSettings.smoothing + 1.0f);
             std::println("[CONFIG] Smoothing: {}", m_aimSettings.smoothing);
+        }
+
+        if (m_esp.was_key_pressed('p') || m_esp.was_key_pressed('P')) {
+            m_aimSettings.prediction_enabled = !m_aimSettings.prediction_enabled;
+            std::println("[CONFIG] Prediction: {}", m_aimSettings.prediction_enabled ? "ENABLED" : "DISABLED");
+        }
+
+        if (m_esp.was_key_pressed('g') || m_esp.was_key_pressed('G')) {
+            m_aimSettings.predict_gravity = !m_aimSettings.predict_gravity;
+            std::println("[CONFIG] Gravity prediction: {}", m_aimSettings.predict_gravity ? "ENABLED" : "DISABLED");
+        }
+
+        // Bullet speed adjustment
+        if (m_esp.was_key_pressed(',')) {
+            m_aimSettings.bullet_speed = std::max(100.0f, m_aimSettings.bullet_speed - 100.0f);
+            std::println("[CONFIG] Bullet speed: {} studs/sec", m_aimSettings.bullet_speed);
+        }
+        if (m_esp.was_key_pressed('.')) {
+            m_aimSettings.bullet_speed = std::min(10000.0f, m_aimSettings.bullet_speed + 100.0f);
+            std::println("[CONFIG] Bullet speed: {} studs/sec", m_aimSettings.bullet_speed);
         }
 
         // Max delta distance: - and = keys
@@ -284,6 +314,8 @@ private:
         float screen_w = m_esp.window_width();
         float screen_h = m_esp.window_height();
 
+        m_activeProfile->set_mouse_position(m_esp.mouse_x(), m_esp.mouse_y());
+
         auto targets = m_activeProfile->find_targets(m_game, camera_cf, fov);
 
         if (targets.empty()) {
@@ -311,11 +343,13 @@ private:
         float best_score = std::numeric_limits<float>::max();
 
         for (auto& t : targets) {
-            if (!t.is_valid) continue;
-
-            // Must be within delta distance for aim
-            if (t.delta_distance > m_aimSettings.max_delta_dist)
+            if (!t.is_valid)
                 continue;
+
+            if (m_aimSettings.selection != games::TargetSelection::ClosestToMouse) {
+                if (t.delta_distance > m_aimSettings.max_delta_dist)
+                    continue;
+            }
 
             float score = 0;
             switch (m_aimSettings.selection) {
@@ -328,6 +362,9 @@ private:
                 case games::TargetSelection::LowestHealth:
                     score = t.health;
                     break;
+                case games::TargetSelection::ClosestToMouse:
+                    score = t.screen_distance;
+                    break;
             }
 
             if (score < best_score) {
@@ -339,14 +376,22 @@ private:
         bool aim_held = is_aim_key_held();
 
         if (aim_held && best_target && m_aimSettings.enabled) {
-            m_activeProfile->apply_aim(*best_target, m_game, camera_cf, m_aimSettings);
+            // Choose aim method based on selection type
+            if (m_aimSettings.selection == games::TargetSelection::ClosestToMouse) {
+                m_activeProfile->apply_aim_mouse(*best_target, m_game, camera_cf, m_aimSettings, m_esp);
+            } else {
+                m_activeProfile->apply_aim(*best_target, m_game, camera_cf, m_aimSettings);
+            }
 
             static int aim_log_counter = 0;
             if (++aim_log_counter >= 30) {
                 aim_log_counter = 0;
-                std::println("[AIM] {} | dist={:.1f} delta={:.2f} style={}",
-                            best_target->name, best_target->distance_3d, best_target->delta_distance,
-                            static_cast<int>(m_aimSettings.style));
+                std::println("[AIM] {} | dist={:.1f} delta={:.2f} style={} mode={}",
+                            best_target->name,
+                            best_target->distance_3d,
+                            best_target->delta_distance,
+                            static_cast<int>(m_aimSettings.style),
+                            m_aimSettings.selection == games::TargetSelection::ClosestToMouse ? "MOUSE" : "CAMERA");
             }
         }
 

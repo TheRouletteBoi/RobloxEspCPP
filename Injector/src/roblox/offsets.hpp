@@ -2,6 +2,7 @@
 
 #include <mach/mach.h>
 
+// https://imtheo.lol/Offsets/Offsets.hpp
 namespace roblox::offsets {
 // DataModel / Game
 inline int WHAT_GAME_POINTS_TO = 0x524a4d0;

@@ -174,10 +174,10 @@ void ESPManager::process_input(const InputCommand& cmd) {
     // Only process if app is active
     if (!m_shm.state().app_is_active.load())
         return;
-    
+
     float content_height = shim_get_content_height();
     float titlebar_height = shim_get_titlebar_height();
-    
+
     switch (cmd.type) {
         case InputType::MOUSE_MOVE: {
             float y = content_height - cmd.y + titlebar_height;

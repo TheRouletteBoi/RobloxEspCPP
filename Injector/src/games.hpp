@@ -6,6 +6,7 @@
 #include "games/murder_mystery_2.hpp"
 #include "games/murderers_vs_sheriffs.hpp"
 #include "games/murderers_vs_sheriffs_duels.hpp"
+#include "games/rivals.hpp"
 
 namespace games {
 
@@ -16,6 +17,7 @@ namespace games {
         factory.register_profile<MurderMystery2Profile>();
         factory.register_profile<MurderersVsSheriffsProfile>();
         factory.register_profile<MurderersVsSheriffsDuelsProfile>();
+        factory.register_profile<RivalsProfile>();
 
         return factory;
     }

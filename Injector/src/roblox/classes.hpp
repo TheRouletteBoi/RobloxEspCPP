@@ -186,7 +186,8 @@ public:
     bool set_cframe(const CFrame& cf) const {
         return write_property(offsets::CAMERA_CFRAME, cf);
     }
-    
+
+    // field of view is in degrees
     float field_of_view() const {
         return read_property<float>(offsets::CAMERA_FIELDOFVIEW).value_or(70.0f);
     }
