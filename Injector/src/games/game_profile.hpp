@@ -30,7 +30,7 @@ struct Target {
 enum class AimStyle { Silent, Legit, Snap };
 enum class TargetSelection { ClosestToCrosshair, ClosestDistance, LowestHealth, ClosestToMouse };
 enum class AimPart { Head, Torso, Custom };
-enum class AimKey { LeftMouse, RightMouse, KeyE };
+enum class AimKey { LeftMouse, RightMouse, KeyK };
 
 struct AimSettings {
     bool enabled = true;

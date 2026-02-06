@@ -21,6 +21,8 @@ public:
         // Force aim_at_teammates false - we need to investigate team detection
         config.aim_at_teammates = false;
     }
+
+    //AimKey default_aim_key() const override { return AimKey::KeyK; }
     
     std::vector<Target> find_targets(roblox::GameContext& game, const roblox::CFrame& camera_cf, float fov_radians) override
     {

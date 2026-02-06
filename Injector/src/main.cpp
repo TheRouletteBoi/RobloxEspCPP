@@ -114,8 +114,8 @@ private:
                 return m_esp.is_left_mouse_down();
             case games::AimKey::RightMouse:
                 return m_esp.is_right_mouse_down();
-            case games::AimKey::KeyE:
-                return m_esp.is_key_down('e') || m_esp.is_key_down('E');
+            case games::AimKey::KeyK:
+                return m_esp.is_key_down('k') || m_esp.is_key_down('K');
         }
         return false;
     }

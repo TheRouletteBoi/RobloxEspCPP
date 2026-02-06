@@ -4,9 +4,10 @@
 
 // https://imtheo.lol/Offsets/Offsets.hpp
 namespace roblox::offsets {
+
 // DataModel / Game
-inline int WHAT_GAME_POINTS_TO = 0x524a4d0;
-inline int PLACEID = 0x5cb3c58;
+inline int WHAT_GAME_POINTS_TO = 0x52bcba8;
+inline int PLACEID = 0x59283f8;
 inline int DATAMODEL_JOBID = 0x138;
 
 // Instance base
