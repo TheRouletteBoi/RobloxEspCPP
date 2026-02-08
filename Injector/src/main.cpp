@@ -521,11 +521,11 @@ void signal_handler(int sig) {
 
 int main(int argc, char* argv[]) {
     std::println("========================================");
-    std::println("    RobloxEspCP (Injector)");
+    std::println("    RobloxExternal-macOS (Injector)");
     std::println("========================================");
-    std::println(" App Name    : RobloxEspCPP (Injector)");
+    std::println(" App Name    : RobloxExternal-macOS (Injector)");
     std::println(" Author      : TheRouLetteBoi");
-    std::println(" Repository  : https://github.com/TheRouletteBoi/RobloxEspCPP");
+    std::println(" Repository  : https://github.com/TheRouletteBoi/RobloxExternal-macOS");
     std::println(" License     : MIT");
     std::println("========================================\n");
 

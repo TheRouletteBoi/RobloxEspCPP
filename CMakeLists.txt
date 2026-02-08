@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(RobloxEspCPP LANGUAGES CXX OBJCXX)
+project(RobloxExternal-macOS LANGUAGES CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
