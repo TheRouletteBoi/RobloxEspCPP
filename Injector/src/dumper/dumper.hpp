@@ -274,6 +274,35 @@ inline std::optional<vm_address_t> find_pointer_by_rtti(
     return matches[0];
 }
 
+inline std::optional<size_t> find_rtti_offset(
+    task_t task,
+    vm_address_t base_address,
+    std::string_view target_class,
+    size_t max_offset = 0x1000,
+    size_t alignment = 8
+) {
+    for (size_t offset = 0; offset < max_offset; offset += alignment) {
+        vm_address_t current_address = base_address + offset;
+
+        uint64_t pointer_value = 0;
+        if (!memory::read_value(task, current_address, pointer_value)) {
+            continue;
+        }
+
+        pointer_value = strip_pointer_authentication(pointer_value);
+        if (!is_valid_pointer(pointer_value)) {
+            continue;
+        }
+
+        auto class_name = probe_rtti_name(task, pointer_value);
+        if (class_name && *class_name == target_class) {
+            return offset;
+        }
+    }
+
+    return std::nullopt;
+}
+
 inline std::optional<vm_address_t> find_datamodel(task_t task, vm_address_t image_base) {
     auto datamodel_global = find_pointer_by_rtti(task, image_base,
         "__DATA", "__bss", "RBX::DataModel"); // __common / __bss
@@ -288,24 +317,24 @@ inline std::optional<vm_address_t> find_datamodel(task_t task, vm_address_t imag
     if (!is_valid_pointer(fake_datamodel))
         return std::nullopt;
 
-    constexpr size_t kRealDmOffset = 0x1c0;
+    auto real_datamodel = find_rtti_offset(task, fake_datamodel, "RBX::DataModel");
+    if (!real_datamodel) {
+        return std::nullopt;
+    }
 
-    uint64_t real_datamodel = 0;
-    if (!memory::read_value(task, fake_datamodel + kRealDmOffset, real_datamodel))
+    uint64_t data_model = 0;
+    if (!memory::read_value(task, fake_datamodel + *real_datamodel, data_model))
         return std::nullopt;
 
-    real_datamodel = strip_pointer_authentication(real_datamodel);
-    if (!is_valid_pointer(real_datamodel))
+    data_model = strip_pointer_authentication(data_model);
+    if (!is_valid_pointer(data_model))
         return std::nullopt;
 
-    auto class_name = probe_rtti_name(task, real_datamodel);
-    if (!class_name)
+    auto class_name = probe_rtti_name(task, data_model);
+    if (!class_name || *class_name != "RBX::DataModel")
         return std::nullopt;
 
-    if (*class_name != "RBX::DataModel")
-        return std::nullopt;
-
-    return real_datamodel;
+    return data_model;
 }
 
 struct OffsetInfo {

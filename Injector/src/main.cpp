@@ -32,15 +32,12 @@ public:
     void run() {
         std::println("=== Roblox ESP Application ===\n");
 
-        std::println("Waiting for game...");
-        m_game = roblox::GameContext::wait_for_game(m_task, 60);
-
-        std::println("Game: {:#X}", m_game.game().address());
-
         if (!m_game) {
             std::println("Failed to find game after 60 seconds");
             return;
         }
+
+        std::println("Game: {:#X}", m_game.game().address());
 
         std::println("Waiting for character...");
         if (!roblox::GameContext::wait_for_character(m_game, 60)) {
