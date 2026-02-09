@@ -278,7 +278,7 @@ public:
     }
 
     template<typename T>
-    std::optional<T> read_property(int offset) const {
+    std::optional<T> read_property(uintptr_t offset) const {
         if (!is_valid()) return std::nullopt;
         T value;
         if (memory::read_value(m_task, m_address + offset, value)) {
@@ -288,7 +288,7 @@ public:
     }
     
     template<typename T>
-    bool write_property(int offset, const T& value) const {
+    bool write_property(uintptr_t offset, const T& value) const {
         if (!is_valid()) return false;
         return vm_write(m_task, m_address + offset,
                        reinterpret_cast<vm_offset_t>(&value), sizeof(T)) == KERN_SUCCESS;
