@@ -42,13 +42,13 @@ public:
             return;
         }
 
-        // Wait for character to load
-        for (int i = 0; i < 30; i++) {
-            m_game.refresh_character();
-            if (m_game.my_hrp()) break;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            std::println("Waiting for character... ({}/30)", i + 1);
+        std::println("Waiting for character...");
+        if (!roblox::GameContext::wait_for_character(m_game, 60)) {
+            std::println("Failed to find character after 60 seconds");
+            return;
         }
+
+        std::println("Character: {:#X}", m_game.my_hrp().address());
 
         dumper::DumperContext::LiveInstances live;
         live.game = m_game.game().address();

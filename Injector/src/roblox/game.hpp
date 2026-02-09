@@ -5,6 +5,7 @@
 #include "roblox/offsets.hpp"
 #include "macho/macho.hpp"
 #include "scanner/scanner.hpp"
+#include "dumper/dumper.hpp"
 
 #include <print>
 #include <thread>
@@ -107,6 +108,25 @@ public:
         }
     }
 
+    static bool wait_for_character(GameContext& game, int timeout_seconds = 30) {
+        auto start = std::chrono::steady_clock::now();
+
+        while (true) {
+            game.refresh_character();
+
+            if (game.my_hrp()) {
+                return true;
+            }
+
+            auto elapsed = std::chrono::steady_clock::now() - start;
+            if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >= timeout_seconds) {
+                return false;
+            }
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    }
+
     void print_info() const {
         std::println("=== Game Info ===");
         std::println("PlaceId: {}", place_id());
@@ -148,57 +168,16 @@ private:
         }
         m_image_base = image.base;
 
-        return find_game_in_memory();
-    }
-
-    Instance find_game_in_memory() {
-        kern_return_t kr = KERN_SUCCESS;
-        vm_address_t address = 0;
-        vm_size_t size = 0;
-        natural_t depth = 0;
-        struct vm_region_submap_info_64 info;
-        mach_msg_type_number_t info_count = VM_REGION_SUBMAP_INFO_COUNT_64;
-
-        while (kr == KERN_SUCCESS) {
-            memset(&info, 0, sizeof(info));
-            info_count = VM_REGION_SUBMAP_INFO_COUNT_64;
-            kr = vm_region_recurse_64(m_task, &address, &size, &depth,
-                                     (vm_region_recurse_info_t)&info, &info_count);
-            if (kr != KERN_SUCCESS) break;
-
-            if (info.user_tag == VM_MEMORY_IOACCELERATOR) {
-                auto game = scan_region_for_game(address, size);
-                if (game.is_valid()) return game;
-            }
-            address += size;
+        auto datamodel = dumper::find_datamodel(m_task, m_image_base);
+        if (datamodel) {
+            Instance game_instance(m_task, *datamodel);
+            auto children = game_instance.children();
+            // if it has children and it's likely valid
+            if (children.size() > 5)
+                return game_instance;
         }
-        return {};
-    }
 
-    Instance scan_region_for_game(vm_address_t start, vm_size_t size) {
-        std::vector<uint8_t> buffer(size);
-        if (!memory::read_bytes(m_task, start, buffer.data(), size))
-            return {};
-
-        for (size_t i = 0; i + 8 <= size; i += 8) {
-            vm_address_t candidate = start + i;
-
-            vm_address_t self = 0;
-            if (!memory::read_value(m_task, candidate + offsets::Instance::INSTANCE_SELF, self))
-                continue;
-            if (self != candidate)
-                continue;
-
-            Instance inst(m_task, candidate);
-            auto name = inst.name();
-            if (name && (*name == "Ugc" || *name == "Game")) {
-                // should have children (Workspace, Players, ect)
-                auto children = inst.children();
-                if (children.size() > 10) {
-                    return inst;
-                }
-            }
-        }
+        std::println("[GameContext] RTTI scanner failed...");
         return {};
     }
 };

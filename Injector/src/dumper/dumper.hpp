@@ -128,6 +128,186 @@ inline bool is_valid_cframe(const roblox::CFrame& cframe) {
     return true;
 }
 
+inline uint64_t strip_pointer_authentication(uint64_t pointer) {
+    return (pointer >> 47) ? (pointer & 0x00007FFFFFFFFFFFULL) : pointer;
+}
+
+inline bool is_valid_pointer(uint64_t pointer) {
+    return pointer >= 0x10000 && pointer <= 0x7FFFFFFFFFFFULL;
+}
+
+inline std::optional<std::string> probe_rtti_name(task_t task, uint64_t address) {
+    uint64_t vtable_raw = 0;
+    if (!memory::read_value(task, address, vtable_raw)) {
+        return std::nullopt;
+    }
+
+    uint64_t vtable_ptr = strip_pointer_authentication(vtable_raw);
+    if (!is_valid_pointer(vtable_ptr)) {
+        return std::nullopt;
+    }
+
+    uint64_t type_info_raw = 0;
+    if (!memory::read_value(task, vtable_ptr - 8, type_info_raw)) {
+        return std::nullopt;
+    }
+
+    uint64_t type_info = strip_pointer_authentication(type_info_raw);
+    if (!is_valid_pointer(type_info)) {
+        return std::nullopt;
+    }
+
+    uint64_t name_raw = 0;
+    if (!memory::read_value(task, type_info + 8, name_raw)) {
+        return std::nullopt;
+    }
+
+    uint64_t name_ptr = strip_pointer_authentication(name_raw);
+    if (!is_valid_pointer(name_ptr)) {
+        return std::nullopt;
+    }
+
+    std::string mangled_name;
+    if (!memory::read_cstring(task, name_ptr, mangled_name, 256) ||
+        mangled_name.size() < 2) {
+        return std::nullopt;
+    }
+
+    if (mangled_name[0] != 'N' &&
+        !(mangled_name[0] >= '1' && mangled_name[0] <= '9') &&
+        mangled_name[0] != 'S') {
+        return std::nullopt;
+    }
+
+    int status = -1;
+    char* demangled = abi::__cxa_demangle(
+        ("_ZTI" + mangled_name).c_str(),
+        nullptr,
+        nullptr,
+        &status
+    );
+
+    if (status != 0 || !demangled) {
+        free(demangled);
+        return std::nullopt;
+    }
+
+    std::string result(demangled);
+    free(demangled);
+
+    const std::string prefix = "typeinfo for ";
+    if (result.compare(0, prefix.size(), prefix) == 0) {
+        result = result.substr(prefix.size());
+    }
+
+    return result;
+}
+
+inline bool validate_instance(
+    task_t task,
+    vm_address_t instance_address,
+    const std::string& expected_name
+) {
+    vm_address_t self_pointer = 0;
+    if (!memory::read_value(task, instance_address + offsets::Instance::INSTANCE_SELF, self_pointer) ||
+        self_pointer != instance_address) {
+        return false;
+    }
+
+    auto actual_name = try_read_string_at(task, instance_address, offsets::Instance::INSTANCE_NAME);
+    return actual_name && *actual_name == expected_name;
+}
+
+inline std::optional<vm_address_t> find_pointer_by_rtti(
+    task_t task,
+    vm_address_t image_base,
+    std::string_view segment_name,
+    std::string_view section_name,
+    std::string_view class_name
+) {
+    auto sectionInfo =
+        macho::get_section(task, image_base, segment_name, section_name);
+
+    if (!sectionInfo)
+        return std::nullopt;
+
+    std::vector<uint8_t> buffer(0x10000);
+    std::vector<vm_address_t> matches;
+
+    const vm_address_t base = sectionInfo->address;
+    const vm_size_t size   = sectionInfo->size;
+
+    for (vm_size_t offset = 0; offset < size; offset += buffer.size()) {
+        vm_size_t chunk_size =
+            std::min(buffer.size(), static_cast<size_t>(size - offset));
+
+        if (!memory::read_bytes(task, base + offset, buffer.data(), chunk_size))
+            continue;
+
+        for (size_t p = 0; p + 8 <= chunk_size; p += 8) {
+            uint64_t ptr;
+            memcpy(&ptr, buffer.data() + p, sizeof(ptr));
+            ptr = strip_pointer_authentication(ptr);
+
+            if (!is_valid_pointer(ptr))
+                continue;
+
+            auto name = probe_rtti_name(task, ptr);
+            if (!name || *name != class_name)
+                continue;
+
+            matches.push_back(base + offset + p);
+
+            if (*name == "RBX::DataModel") {
+                if (matches.size() >= 2) {
+                    std::sort(matches.begin(), matches.end(),
+                          [](vm_address_t a, vm_address_t b) { return a > b; });
+                    return matches[1];
+                }
+            }
+        }
+    }
+
+    if (matches.empty())
+        return std::nullopt;
+
+    return matches[0];
+}
+
+inline std::optional<vm_address_t> find_datamodel(task_t task, vm_address_t image_base) {
+    auto datamodel_global = find_pointer_by_rtti(task, image_base,
+        "__DATA", "__bss", "RBX::DataModel"); // __common / __bss
+    if (!datamodel_global)
+        return std::nullopt;
+
+    uint64_t fake_datamodel = 0;
+    if (!memory::read_value(task, *datamodel_global, fake_datamodel))
+        return std::nullopt;
+
+    fake_datamodel = strip_pointer_authentication(fake_datamodel);
+    if (!is_valid_pointer(fake_datamodel))
+        return std::nullopt;
+
+    constexpr size_t kRealDmOffset = 0x1c0;
+
+    uint64_t real_datamodel = 0;
+    if (!memory::read_value(task, fake_datamodel + kRealDmOffset, real_datamodel))
+        return std::nullopt;
+
+    real_datamodel = strip_pointer_authentication(real_datamodel);
+    if (!is_valid_pointer(real_datamodel))
+        return std::nullopt;
+
+    auto class_name = probe_rtti_name(task, real_datamodel);
+    if (!class_name)
+        return std::nullopt;
+
+    if (*class_name != "RBX::DataModel")
+        return std::nullopt;
+
+    return real_datamodel;
+}
+
 struct OffsetInfo {
     std::string name;
     uintptr_t offset;
@@ -793,20 +973,5 @@ private:
         }
     }
 };
-
-inline bool validate_instance(
-    task_t task,
-    vm_address_t instance_address,
-    const std::string& expected_name
-) {
-    vm_address_t self_pointer = 0;
-    if (!memory::read_value(task, instance_address + offsets::Instance::INSTANCE_SELF, self_pointer) ||
-        self_pointer != instance_address) {
-        return false;
-    }
-
-    auto actual_name = try_read_string_at(task, instance_address, offsets::Instance::INSTANCE_NAME);
-    return actual_name && *actual_name == expected_name;
-}
 
 } // namespace dumper
