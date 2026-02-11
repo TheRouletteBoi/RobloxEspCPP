@@ -44,13 +44,13 @@ git clone --recursive https://github.com/TheRouletteBoi/RobloxExternal-macOS.git
 
 GUI build requires [vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake -B build -DCMAKE_BUILD_TYPE=Dist
 cmake --build build
 ```
 
 Headless
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DWL_HEADLESS=ON
+cmake -B build -DCMAKE_BUILD_TYPE=Dist -DWL_HEADLESS=ON
 cmake --build build
 ```
 

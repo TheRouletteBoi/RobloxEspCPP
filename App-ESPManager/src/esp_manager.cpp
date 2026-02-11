@@ -404,7 +404,7 @@ void esp_cleanup() {
     std::println("\n========================================");
     std::println("   RobloxExternal-macOS DYLIB UNLOADING");
     std::println("========================================\n");
-    
+
     g_manager.reset();
 }
 
