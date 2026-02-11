@@ -36,24 +36,29 @@ To inject into protected processes on macOS, **System Integrity Protection (SIP)
 
 ## Build Instructions
 
+GUI
 ```bash
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --parallel
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+Headless
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DWL_HEADLESS=ON
+cmake --build build
 ```
 
 ---
 
 ## Running the Injector
 
-1. Navigate to the `build` directory.
+1. Navigate to the `build/bin` directory.
 2. You should see:
-    - `injector`
-    - `libESPManager.dylib`
+    - `App-Injector-Headless`
+    - `libApp-ESPManager.dylib`
 3. Run:
    ```bash
-   ./injector
+   ./App-Injector-Headless
    ```
 
 ---

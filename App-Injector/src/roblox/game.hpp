@@ -108,13 +108,13 @@ public:
         }
     }
 
-    static bool wait_for_character(GameContext& game, int timeout_seconds = 30) {
+    bool wait_for_character(int timeout_seconds = 30) {
         auto start = std::chrono::steady_clock::now();
 
         while (true) {
-            game.refresh_character();
+            refresh_character();
 
-            if (game.my_hrp()) {
+            if (my_hrp()) {
                 return true;
             }
 

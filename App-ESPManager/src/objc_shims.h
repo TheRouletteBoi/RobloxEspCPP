@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Common/esp_types.hpp"
+#include "../App-Common/esp_types.hpp"
 
 #include <functional>
 #include <cstdint>

@@ -1,91 +1,68 @@
 cmake_minimum_required(VERSION 3.20)
-project(RobloxExternal-macOS LANGUAGES CXX OBJCXX)
+project(RobloxExternal-macOS LANGUAGES C CXX OBJC)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_OBJCXX_STANDARD 23)
-set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin/${CMAKE_BUILD_TYPE}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin/${CMAKE_BUILD_TYPE}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin/${CMAKE_BUILD_TYPE}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR})
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
+if(APPLE)
+    if(CMAKE_OSX_ARCHITECTURES)
+        set(ARCH ${CMAKE_OSX_ARCHITECTURES})
+    elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+        set(ARCH "arm64")
+    else()
+        set(ARCH "x86_64")
+    endif()
+    set(OUTPUT_DIR "${CMAKE_BUILD_TYPE}-macosx-${ARCH}")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin/${OUTPUT_DIR})
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin/${OUTPUT_DIR})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin/${OUTPUT_DIR})
+elseif(WIN32)
+    set(OUTPUT_DIR "${CMAKE_BUILD_TYPE}-windows-x64")
+elseif(UNIX)
+    set(OUTPUT_DIR "${CMAKE_BUILD_TYPE}-linux-x64")
+endif()
 
-set(COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Common)
+option(WL_HEADLESS "Build headless (no GUI)" OFF)
+option(WL_BUILD_INJECTOR "Build App-Injector" ON)
+option(WL_BUILD_ESPMANAGER "Build App-ESPManager dylib" ON)
 
-# libESP - Shared Library (dylib)
-set(LIBESPMANAGER_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libESPManager/src)
 
-add_library(ESPManager SHARED
-    ${LIBESPMANAGER_SRC_DIR}/esp_manager.cpp
-    ${LIBESPMANAGER_SRC_DIR}/objc_shims.mm
+if(NOT WL_HEADLESS)
+    find_package(Vulkan REQUIRED)
+    message(STATUS "Vulkan found: ${Vulkan_INCLUDE_DIRS}")
+endif()
+
+if(APPLE)
+    add_compile_definitions(WL_PLATFORM_MACOS)
+elseif(WIN32)
+    add_compile_definitions(WL_PLATFORM_WINDOWS)
+elseif(UNIX)
+    add_compile_definitions(WL_PLATFORM_LINUX)
+endif()
+
+add_compile_definitions(
+    $<$<CONFIG:Debug>:WL_DEBUG>
+    $<$<CONFIG:Release>:WL_RELEASE>
+    $<$<CONFIG:Dist>:WL_DIST>
 )
 
-set_target_properties(ESPManager PROPERTIES
-    PREFIX "lib"
-    SUFFIX ".dylib"
-    OUTPUT_NAME "ESPManager"
-)
+if(WL_HEADLESS)
+    add_compile_definitions(WL_HEADLESS)
+endif()
 
-target_include_directories(ESPManager PRIVATE
-    ${LIBESPMANAGER_SRC_DIR}
-    ${COMMON_DIR}
-)
+add_subdirectory(Walnut)
 
-find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
-find_library(COCOA_FRAMEWORK Cocoa REQUIRED)
-find_library(COREGRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
-find_library(WEBKIT_FRAMEWORK WebKit REQUIRED)
-find_library(UNIFORMTYPEIDENTIFIERS_FRAMEWORK UniformTypeIdentifiers REQUIRED)
-find_library(SCREENCAPTUREKIT_FRAMEWORK ScreenCaptureKit REQUIRED)
-find_library(COREMEDIA_FRAMEWORK CoreMedia REQUIRED)
-find_library(COREIMAGE_FRAMEWORK CoreImage REQUIRED)
+if(WL_BUILD_INJECTOR)
+    add_subdirectory(App-Injector)
+endif()
 
-target_link_libraries(ESPManager PRIVATE
-    ${FOUNDATION_FRAMEWORK}
-    ${COCOA_FRAMEWORK}
-    ${COREGRAPHICS_FRAMEWORK}
-    ${WEBKIT_FRAMEWORK}
-    ${UNIFORMTYPEIDENTIFIERS_FRAMEWORK}
-    ${SCREENCAPTUREKIT_FRAMEWORK}
-    ${COREMEDIA_FRAMEWORK}
-    ${COREIMAGE_FRAMEWORK}
-)
-
-target_compile_options(ESPManager PRIVATE
-    -Wall
-    -Wextra
-    -Wno-unused-parameter
-)
-
-# Injector - Executable
-set(INJECTOR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Injector/src)
-
-add_executable(injector
-    ${INJECTOR_SRC_DIR}/main.cpp
-)
-
-target_include_directories(injector PRIVATE
-    ${COMMON_DIR}
-    ${INJECTOR_SRC_DIR}
-)
-
-target_compile_options(injector PRIVATE
-    -Wall
-    -Wextra
-    -Wno-unused-parameter
-)
-
-set(INJECTOR_ENTITLEMENTS ${CMAKE_CURRENT_SOURCE_DIR}/injector/debug.entitlements)
-
-add_custom_command(
-    TARGET injector
-    POST_BUILD
-    COMMAND codesign
-        --force
-        --sign -
-        --entitlements ${INJECTOR_ENTITLEMENTS}
-        --timestamp=none
-        $<TARGET_FILE:injector>
-    COMMENT "Codesigning injector with debug entitlements"
-)
+if(WL_BUILD_ESPMANAGER AND APPLE)
+    add_subdirectory(App-ESPManager)
+endif()

@@ -1,5 +1,5 @@
 #include "objc_shims.h"
-#include "../Common/esp_ipc.hpp"
+#include "../App-Common/esp_ipc.hpp"
 
 #include <thread>
 #include <atomic>

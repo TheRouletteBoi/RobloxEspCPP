@@ -1,0 +1,4 @@
+[submodule "Walnut"]
+	path = Walnut
+	url = https://github.com/TheRouletteBoi/Walnut
+	branch = MacOS
