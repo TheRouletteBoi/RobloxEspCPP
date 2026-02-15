@@ -15,12 +15,6 @@ public:
     
     void initialize(roblox::GameContext& game) override {
         std::println("[MVS] Initializing Murderers VS Sheriffs profile...");
-        config.aim_part = "HumanoidRootPart";
-        config.max_distance = 200.0f;
-        config.max_delta_dist = 10.0f;
-
-        // Force aim_at_teammates false - we need to investigate team detection
-        config.aim_at_teammates = false;
     }
     
     std::vector<Target> find_targets(roblox::GameContext& game, const roblox::CFrame& camera_cf, float fov_radians) override

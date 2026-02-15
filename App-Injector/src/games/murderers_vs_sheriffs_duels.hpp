@@ -15,11 +15,6 @@ public:
     
     void initialize(roblox::GameContext& game) override {
         std::println("[MVS] Initializing Murderers VS Sheriffs Duels profile...");
-        config.aim_part = "HumanoidRootPart";
-        config.max_distance = 200.0f;
-        config.max_delta_dist = 10.0f;
-        // Force aim_at_teammates false - we need to investigate team detection
-        config.aim_at_teammates = false;
     }
 
     //AimKey default_aim_key() const override { return AimKey::KeyK; }
