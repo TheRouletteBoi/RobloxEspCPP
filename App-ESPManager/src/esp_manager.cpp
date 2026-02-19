@@ -387,12 +387,12 @@ void esp_initialize() {
     std::println(" Repository  : https://github.com/TheRouletteBoi/RobloxExternal-macOS");
     std::println(" License     : MIT");
     std::println("========================================\n");
-    
+
     try {
         g_manager = std::make_unique<ESPManager>("/tmp/esp_shared_memory");
         g_manager->run();
 
-        
+
         std::println("ESP initialized - PID: {}", getpid());
     } catch (const std::exception& e) {
         std::println("ESP initialization failed: {}", e.what());

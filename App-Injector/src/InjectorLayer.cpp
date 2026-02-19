@@ -11,9 +11,9 @@
 #include <cmath>
 
 namespace config {
-    constexpr const char* APP_NAME = "RobloxPlayer";
-    constexpr const char* SHM_PATH = "/tmp/esp_shared_memory";
-    constexpr const char* DYLIB_NAME = "libApp-ESPManager.dylib";
+	constexpr const char* APP_NAME = "RobloxPlayer";
+	constexpr const char* SHM_PATH = "/tmp/esp_shared_memory";
+	constexpr const char* DYLIB_NAME = "libApp-ESPManager.dylib";
 }
 
 InjectorLayer::InjectorLayer()
